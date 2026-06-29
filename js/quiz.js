@@ -3,6 +3,7 @@
 
   const BLOCKS = window.QUIZ_BLOCKS || [];
   const QUESTIONS = window.QUIZ_QUESTIONS || [];
+  const STORAGE_KEY = "ai-coding-interview-quiz:v1";
 
   const state = {
     mode: null, // "block" | "full" | "retry"
@@ -56,10 +57,40 @@
       return;
     }
 
+    loadPersistedProgress();
     wireEvents();
     renderBlockButtons();
     refreshGlobalProgress();
     showView("menu");
+  }
+
+  function loadPersistedProgress() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && parsed.historyByBlock && typeof parsed.historyByBlock === "object") {
+        state.historyByBlock = parsed.historyByBlock;
+      }
+    } catch (err) {
+      // Si el storage esta corrupto, no bloqueamos el quiz.
+      state.historyByBlock = {};
+    }
+  }
+
+  function persistProgress() {
+    try {
+      const payload = {
+        historyByBlock: state.historyByBlock,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      // Ignorar errores de storage (modo privado/cuota llena).
+    }
   }
 
   function wireEvents() {
@@ -298,6 +329,8 @@
         };
       }
     }
+
+    persistProgress();
 
     renderResults({ total, correct, percent });
     refreshGlobalProgress();
